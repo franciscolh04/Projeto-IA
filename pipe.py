@@ -37,8 +37,6 @@ class Board:
     def __init__(self, grid):
         self.grid = grid
         self.size = len(grid)
-    
-    # ?TODO?: get_row and get_col
 
     def get_value(self, row: int, col: int) -> str:
         """Devolve o valor na respetiva posição do tabuleiro."""
@@ -60,40 +58,18 @@ class Board:
     def adjacent_vertical_values(self, row: int, col: int) -> (str, str):
         """Devolve os valores imediatamente acima e abaixo,
         respectivamente."""
-        """
-        if row not in (0, self.size - 1):
-            return (self.grid[row - 1][col], self.grid[row + 1][col])
-        elif row == 0:
-            return (None, self.grid[row + 1][col])
-        elif row == self.size - 1:
-            return (self.grid[row - 1][col], None)
-        else:
-            return (None, None)
-        """
         return (self.get_value(row - 1, col), self.get_value(row + 1, col))
 
     def adjacent_horizontal_values(self, row: int, col: int) -> (str, str):
         """Devolve os valores imediatamente à esquerda e à direita,
         respectivamente."""
-        """
-        if col not in (0, self.size - 1):
-            return (self.grid[row][col - 1], self.grid[row][col + 1])
-        elif col == 0:
-            return (None, self.grid[row][col + 1])
-        elif col == self.size - 1:
-            return (self.grid[row][col - 1], None)
-        else:
-            return (None, None)
-        """
         return (self.get_value(row, col - 1), self.get_value(row, col + 1))
     
     def set_value(self, row: int, col: int, clockwise: bool):
         """Devolve uma nova instância da classe Board com a
         alteração aplicada"""
         all_orientations = ('C', 'D', 'B', 'E')
-        dic = {'H': 'V', 'V': 'H'}
-
-        #print("Value: " + self.get_value(row, col))
+        dic_volta = {'H': 'V', 'V': 'H'}
 
         piece_type = self.get_type(row, col)
         orientation = self.get_orientation(row, col)
@@ -106,13 +82,10 @@ class Board:
             else:
                 new_value += piece_type + all_orientations[(current_orientation - 1) % 4]
         else:
-            new_value += piece_type + dic[orientation]
+            new_value += piece_type + dic_volta[orientation]
         
         new_grid = self.grid
         new_grid[row][col] = new_value
-
-        #print(self.get_value(row, col))
-        #print("new: " + new_value)
 
         return Board(new_grid)
 
@@ -134,9 +107,6 @@ class Board:
         while len(line) != 0:
             grid.append(line)
             line = stdin.readline().split()
-
-        # tabuleiro = Board(grid)
-        # print(tabuleiro)
 
         return Board(grid)
     
@@ -223,6 +193,7 @@ if __name__ == "__main__":
     print(result_state.board.get_value(2, 2))
     """
 
+    #"""
     #Exemplo 3
     # Ler grelha do figura 1a:
     board = Board.parse_instance()
@@ -244,3 +215,4 @@ if __name__ == "__main__":
     s11 = problem.result(s10, (2, 2, True))
 
     print("Solution:\n", s11.board.print(), sep="")
+    #"""
