@@ -143,6 +143,57 @@ class Board:
 
     def fix_borders(self, row: int, col: int):
         pass
+    
+    def get_connection_right(self, row: int, col: int) -> bool:
+        orientation = self.get_orientation(row, col)
+        if orientation in ("D", "H"):
+            return True
+        piece = self.get_value(row, col)
+        if piece in ("BC", "BB", "VB"):
+            return True
+        else: 
+            return False
+    
+    def get_connection_left(self, row: int, col: int) -> bool:
+        orientation = self.get_orientation(row, col)
+        if orientation in ("E", "H"):
+            return True
+        piece = self.get_value(row, col)
+        if piece in ("BC", "BB", "VC"):
+            return True
+        else: 
+            return False
+    
+    def get_connection_top(self, row: int, col: int) -> bool:
+        orientation = self.get_orientation(row, col)
+        if orientation in ("C", "V"):
+            return True
+        piece = self.get_value(row, col)
+        if piece in ("BE", "BD", "VD") :
+            return True
+        else: 
+            return False
+
+    def get_connection_bottom(self, row: int, col: int) -> bool:
+        orientation = self.get_orientation(row, col)
+        if orientation in ("B", "V"):
+            return True
+        piece = self.get_value(row, col)
+        if piece in ("BE", "BD", "VE") :
+            return True
+        else: 
+            return False
+
+    def match_pieces(self, row: int, col: int, direction: str):
+        if direction == "r":
+            connect_1 = self.get_connection_right(row,col)
+            connect_2 = self.get_connection_left(row,col + 1)
+        else:
+            connect_1 = self.get_connection_bottom(row,col)
+            connect_2 = self.get_connection_top(row + 1,col)
+    
+        return connect_1 == connect_2
+            
 
 
     @staticmethod
@@ -183,6 +234,27 @@ class Board:
                     string += self.get_value(i, j) + " " #verificar se é espaço ou tabulação
         return string
 
+    def deepcopy(self):
+        # Criando uma nova matriz vazia com as mesmas dimensões do tabuleiro original
+        new_grid = [[[None, False, []] for _ in range(board.size)] for _ in range(board.size)]
+        
+        # Copiando os elementos e atributos do tabuleiro original para o novo tabuleiro
+        for i in range(board.size):
+            for j in range(board.size):
+                piece, locked, connections = self.grid[i][j]
+                new_grid[i][j] = [piece, locked, self.deepcopy_list(connections)]  # Usando copy para criar uma cópia da lista de conexões
+        
+        # Criando um novo objeto Board com a nova matriz
+        new_board = Board(new_grid)
+        return new_board
+    
+    def deepcopy_list(self, lst):
+        if not isinstance(lst, list):
+            return lst  # Se o elemento não for uma lista, apenas o retorna
+        else:
+            return [self.deepcopy_list(item) for item in lst]  # Caso contrário, faz uma cópia profunda de cada elemento
+
+
     # TODO: outros metodos da classe
 
 
@@ -215,13 +287,24 @@ class PipeMania(Problem):
         'state' passado como argumento. A ação a executar deve ser uma
         das presentes na lista obtida pela execução de
         self.actions(state)."""
+        """
         (row, col, direction) = action
-        #return PipeManiaState(state.board.rotate_piece(row, col, direction))
-        action_list = state.board.grid[row][col][2]
-        print("action list: " + str(action_list))
+        new_board = state.board.deepcopy()
+        new_board.rotate_piece(row, col, direction)
+        new_state = PipeManiaState(new_board)
+        return new_state
+        """
+        (row, col, orientation) = action
+        board = state.board
+        action_list = board.deepcopy_list(board.grid[row][col][2])
+        print("action list " + str((row, col)) + ": " + str(action_list))
         action_list.remove(action)
-        state.board.grid[row][col][2] = action_list
-        return PipeManiaState(state.board.set_orientation(row, col, direction))
+        new_board = board.deepcopy()
+        new_board.grid[row][col][2] = action_list
+        new_board.set_orientation(row, col, orientation)
+        result_state = PipeManiaState(new_board)
+        return result_state
+        #"""
 
 
     def goal_test(self, state: PipeManiaState):
@@ -230,7 +313,25 @@ class PipeMania(Problem):
         estão preenchidas de acordo com as regras do problema."""
         # TODO
         # return state.board.algumafuncao()
-        pass
+        board = state.board
+        size = state.board.size
+        
+        for i in range(size):
+            for j in range(size):
+                right_piece = board.get_value(i, j + 1)
+                bottom_piece = board.get_value(i + 1, j)
+                match_right = match_bottom = True
+                if right_piece != None:
+                    match_right = board.match_pieces(i, j, "r")
+                if bottom_piece != None:
+                    match_bottom = board.match_pieces(i, j, "b")
+                
+                if match_right == False or match_bottom == False:
+                    return False
+        return True
+
+
+
 
     def h(self, node: Node):
         """Função heuristica utilizada para a procura A*."""
@@ -249,8 +350,10 @@ if __name__ == "__main__":
     #"""
     board = Board.parse_instance()
     pipe = PipeMania(board)
-    goal = depth_limited_search(pipe, 4 * board.size * board.size)
-    #print(goal.state.board)
+    #print(board.match_pieces(0, 0, "b"))
+
+    goal = breadth_first_tree_search(pipe)
+    goal.state.board.print()
     #"""
 
     """
@@ -312,5 +415,9 @@ if __name__ == "__main__":
     s10 = problem.result(s9, (2, 1, True))
     s11 = problem.result(s10, (2, 2, True))
 
-    print("Solution:\n", s11.board.print(), sep="")
-    """
+    # Verificar se foi atingida a solução
+    print("Is goal?", problem.goal_test(s5))
+    print("Is goal?", problem.goal_test(s11))
+    print("Solution s5:\n", s5.board.print(), sep="")
+    print("Solution s11:\n", s11.board.print(), sep="")
+    #"""
