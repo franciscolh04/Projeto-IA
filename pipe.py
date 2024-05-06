@@ -221,8 +221,11 @@ class Board:
                     grid[i][j][2] = [(i, j, "C"), (i, j, "B"), (i, j, "E"), (i, j, "D")]
                 else:
                     grid[i][j][2] = [(i, j, "H"), (i, j, "V")]
+        
+        board = Board(grid)
+        #board.removeActions()
 
-        return Board(grid)
+        return board
     
     def print(self):
         string = ""
@@ -274,8 +277,6 @@ class PipeMania(Problem):
             for j in range(len(grid[0])):
                 for action in grid[i][j][2]:
                     action_list.append(action)
-        
-        print(action_list)
         return action_list
         # TODO
         # obter próxima peça
@@ -311,26 +312,41 @@ class PipeMania(Problem):
         """Retorna True se e só se o estado passado como argumento é
         um estado objetivo. Deve verificar se todas as posições do tabuleiro
         estão preenchidas de acordo com as regras do problema."""
-        # TODO
-        # return state.board.algumafuncao()
         board = state.board
-        size = state.board.size
-        
-        for i in range(size):
-            for j in range(size):
-                right_piece = board.get_value(i, j + 1)
-                bottom_piece = board.get_value(i + 1, j)
-                match_right = match_bottom = True
-                if right_piece != None:
-                    match_right = board.match_pieces(i, j, "r")
-                if bottom_piece != None:
-                    match_bottom = board.match_pieces(i, j, "b")
-                
-                if match_right == False or match_bottom == False:
-                    return False
-        return True
+        size = board.size
+        visited = set()  # Conjunto para armazenar as posições visitadas
 
+        stack = [(0, 0)]  # Iniciar a pilha com a posição inicial (0, 0)
 
+        while stack:
+            row, col = stack.pop()  # Obter a próxima posição a ser explorada
+            if (row, col) in visited:
+                continue  # Evitar ciclos
+            visited.add((row, col))
+
+            # Verificar se a peça atual está corretamente conectada
+            right_piece, left_piece = board.adjacent_horizontal_values(row, col)
+            bottom_piece, top_piece = board.adjacent_vertical_values(row, col)
+            match_right = match_left = match_bottom = match_top = True
+            if right_piece is not None:
+                match_right = board.match_pieces(row, col, "r")
+            if left_piece is not None:
+                match_left = board.match_pieces(row, col - 1, "r")
+            if bottom_piece is not None:
+                match_bottom = board.match_pieces(row, col, "b")
+            if top_piece is not None:
+                match_top = board.match_pieces(row - 1, col, "b")
+
+            if not (match_right and match_left and match_bottom and match_top):
+                return False
+
+            # Explorar peças adjacentes
+            for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                new_row, new_col = row + dr, col + dc
+                if 0 <= new_row < size and 0 <= new_col < size:
+                    stack.append((new_row, new_col))
+
+        return True  # Se todas as posições foram visitadas e conectadas corretamente, retornar True
 
 
     def h(self, node: Node):
@@ -350,10 +366,8 @@ if __name__ == "__main__":
     #"""
     board = Board.parse_instance()
     pipe = PipeMania(board)
-    #print(board.match_pieces(0, 0, "b"))
-
     goal = breadth_first_tree_search(pipe)
-    goal.state.board.print()
+    print(goal.state.board.print())
     #"""
 
     """
