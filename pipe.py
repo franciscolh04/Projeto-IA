@@ -67,7 +67,7 @@ class Board:
             return None
     
     def lock_piece(self, row: int, col: int):
-        if 0 <= row <= self.size - 1 and 0 <= col <= self.size - 1:
+        if self.valid_coord(row, col):
             self.grid[row][col][1] = True
 
     def adjacent_vertical_values(self, row: int, col: int) -> (str, str):
@@ -136,12 +136,6 @@ class Board:
 
     def get_possible_moves(self, row: int, col: int):
         # obter possíveis posições para a peça especificada tendo em conta as suas adjacentes
-        pass
-
-    def fix_corners(self, row: int, col: int):
-        pass
-
-    def fix_borders(self, row: int, col: int):
         pass
     
     def get_connection_right(self, row: int, col: int) -> bool:
@@ -229,13 +223,12 @@ class Board:
                     grid[i][j][2] = [(i, j, "H"), (i, j, "V")]
         
         board = Board(grid)
-        board.removeActions()
+        board.filterActions()
         print(grid)
 
         return board
     
-    def removeActions(self):
-        # Fix corners
+    def fix_corners(self):
         top_left, top_right = self.get_type(0, 0), self.get_type(0, self.size - 1)
         bottom_left, bottom_right = self.get_type(self.size - 1, 0), self.get_type(self.size - 1, self.size - 1)
 
@@ -258,6 +251,66 @@ class Board:
             self.grid[self.size - 1][0][2] = [(self.size - 1, 0, "D")]
         elif bottom_left == "F":
             self.grid[self.size - 1][0][2] = [(self.size - 1, 0, "D"), (self.size - 1, 0, "C")]
+    
+    def fix_borders(self):
+        # Fix top
+        for col in range(1, self.size - 1):
+            piece_type = self.get_type(0, col)
+
+            if piece_type == "V":
+                self.grid[0][col][2] = [(0, col, "B"), (0, col, "E")]
+            elif piece_type == "F":
+                self.grid[0][col][2] = [(0, col, "B"), (0, col, "E"), (0, col, "D")]
+            elif piece_type == "B":
+                self.grid[0][col][2] = [(0, col, "B")]
+            elif piece_type == "L":
+                self.grid[0][col][2] = [(0, col, "H")]
+        
+        # Fix bottom
+        for col in range(1, self.size - 1):
+            piece_type = self.get_type(self.size - 1, col)
+
+            if piece_type == "V":
+                self.grid[self.size - 1][col][2] = [(self.size - 1, col, "C"), (self.size - 1, col, "D")]
+            elif piece_type == "F":
+                self.grid[self.size - 1][col][2] = [(self.size - 1, col, "C"), (self.size - 1, col, "E"), (self.size - 1, col, "D")]
+            elif piece_type == "B":
+                self.grid[self.size - 1][col][2] = [(self.size - 1, col, "C")]
+            elif piece_type == "L":
+                self.grid[self.size - 1][col][2] = [(self.size - 1, col, "H")]
+        
+        # Fix left
+        for line in range(1, self.size - 1):
+            piece_type = self.get_type(line, 0)
+
+            if piece_type == "V":
+                self.grid[line][0][2] = [(line, 0, "B"), (line, 0, "D")]
+            elif piece_type == "F":
+                self.grid[line][0][2] = [(line, 0, "B"), (line, 0, "C"), (line, 0, "D")]
+            elif piece_type == "B":
+                self.grid[line][0][2] = [(line, 0, "D")]
+            elif piece_type == "L":
+                self.grid[line][0][2] = [(line, 0, "V")]
+
+        # Fix right
+        for line in range(1, self.size - 1):
+            piece_type = self.get_type(line, self.size - 1)
+
+            if piece_type == "V":
+                self.grid[line][self.size - 1][2] = [(line, self.size - 1, "E"), (line, self.size - 1, "C")]
+            elif piece_type == "F":
+                self.grid[line][self.size - 1][2] = [(line, self.size - 1, "B"), (line, self.size - 1, "C"), (line, self.size - 1, "E")]
+            elif piece_type == "B":
+                self.grid[line][self.size - 1][2] = [(line, self.size - 1, "E")]
+            elif piece_type == "L":
+                self.grid[line][self.size - 1][2] = [(line, self.size - 1, "V")]
+
+
+    
+    def filterActions(self):
+        self.fix_corners()
+        self.fix_borders()
+        
     
     def print(self):
         string = ""
@@ -320,23 +373,20 @@ class PipeMania(Problem):
         'state' passado como argumento. A ação a executar deve ser uma
         das presentes na lista obtida pela execução de
         self.actions(state)."""
-        """
-        (row, col, direction) = action
-        new_board = state.board.deepcopy()
-        new_board.rotate_piece(row, col, direction)
-        new_state = PipeManiaState(new_board)
-        return new_state
-        """
         (row, col, orientation) = action
         board = state.board
+
         action_list = board.deepcopy_list(board.grid[row][col][2])
         #print("action list " + str((row, col)) + ": " + str(action_list))
         action_list.remove(action)
+
         new_board = board.deepcopy()
         new_board.grid[row][col][2] = action_list
+        if len(action_list) == 0:
+            new_board.lock_piece(row, col)
         new_board.set_orientation(row, col, orientation)
-        result_state = PipeManiaState(new_board)
-        return result_state
+
+        return PipeManiaState(new_board)
         #"""
 
 
