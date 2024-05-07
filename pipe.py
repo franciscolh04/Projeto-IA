@@ -188,11 +188,17 @@ class Board:
         if direction == "r":
             connect_1 = self.get_connection_right(row,col)
             connect_2 = self.get_connection_left(row,col + 1)
-        else:
+        elif direction == "l":
+            connect_1 = self.get_connection_right(row,col - 1)
+            connect_2 = self.get_connection_left(row,col)
+        elif direction == "b":
             connect_1 = self.get_connection_bottom(row,col)
             connect_2 = self.get_connection_top(row + 1,col)
+        elif direction == "t":
+            connect_1 = self.get_connection_bottom(row - 1,col)
+            connect_2 = self.get_connection_top(row,col)
     
-        return connect_1 == connect_2
+        return connect_1 and connect_2
             
 
 
@@ -223,9 +229,35 @@ class Board:
                     grid[i][j][2] = [(i, j, "H"), (i, j, "V")]
         
         board = Board(grid)
-        #board.removeActions()
+        board.removeActions()
+        print(grid)
 
         return board
+    
+    def removeActions(self):
+        # Fix corners
+        top_left, top_right = self.get_type(0, 0), self.get_type(0, self.size - 1)
+        bottom_left, bottom_right = self.get_type(self.size - 1, 0), self.get_type(self.size - 1, self.size - 1)
+
+        if top_left == "V":
+            self.grid[0][0][2] = [(0, 0, "B")]
+        elif top_left == "F":
+            self.grid[0][0][2] = [(0, 0, "B"), (0, 0, "D")]
+        
+        if top_right == "V":
+            self.grid[0][self.size - 1][2] = [(0, self.size - 1, "E")]
+        elif top_right == "F":
+            self.grid[0][self.size - 1][2] = [(0, self.size - 1, "E"), (0, self.size - 1, "B")]
+        
+        if bottom_right == "V":
+            self.grid[self.size - 1][self.size - 1][2] = [(self.size - 1, self.size - 1, "C")]
+        elif bottom_right == "F":
+             self.grid[self.size - 1][self.size - 1][2] = [(self.size - 1, self.size - 1, "C"), (self.size - 1, self.size - 1, "E")]
+        
+        if bottom_left == "V":
+            self.grid[self.size - 1][0][2] = [(self.size - 1, 0, "D")]
+        elif bottom_left == "F":
+            self.grid[self.size - 1][0][2] = [(self.size - 1, 0, "D"), (self.size - 1, 0, "C")]
     
     def print(self):
         string = ""
@@ -298,7 +330,7 @@ class PipeMania(Problem):
         (row, col, orientation) = action
         board = state.board
         action_list = board.deepcopy_list(board.grid[row][col][2])
-        print("action list " + str((row, col)) + ": " + str(action_list))
+        #print("action list " + str((row, col)) + ": " + str(action_list))
         action_list.remove(action)
         new_board = board.deepcopy()
         new_board.grid[row][col][2] = action_list
@@ -323,30 +355,44 @@ class PipeMania(Problem):
             if (row, col) in visited:
                 continue  # Evitar ciclos
             visited.add((row, col))
+            print("row, col: " + str((row, col)))
 
             # Verificar se a peça atual está corretamente conectada
-            right_piece, left_piece = board.adjacent_horizontal_values(row, col)
-            bottom_piece, top_piece = board.adjacent_vertical_values(row, col)
+            left_piece, right_piece = board.adjacent_horizontal_values(row, col)
+            top_piece, bottom_piece = board.adjacent_vertical_values(row, col)
             match_right = match_left = match_bottom = match_top = True
-            if right_piece is not None:
+            if board.get_connection_right(row, col):
+                print("direita")
                 match_right = board.match_pieces(row, col, "r")
-            if left_piece is not None:
-                match_left = board.match_pieces(row, col - 1, "r")
-            if bottom_piece is not None:
+                if match_right and (row, col + 1) not in visited:
+                    stack.append((row, col + 1))
+            if board.get_connection_left(row, col):
+                print("esquerda")
+                match_left = board.match_pieces(row, col, "l")
+                if match_left and (row, col - 1) not in visited:
+                    stack.append((row, col - 1))
+            if board.get_connection_bottom(row, col):
+                print("baixo")
                 match_bottom = board.match_pieces(row, col, "b")
-            if top_piece is not None:
-                match_top = board.match_pieces(row - 1, col, "b")
+                if match_bottom and (row + 1, col) not in visited:
+                    stack.append((row + 1, col))
+            if board.get_connection_top(row, col):
+                print("cima")
+                match_top = board.match_pieces(row, col, "t")
+                if match_top and (row - 1, col) not in visited:
+                    stack.append((row - 1, col))
+            
+            if not (match_left and match_right and match_bottom and match_top):
+                return False 
+    
+        print(visited)        
+                    
+        for i in range(size):
+            for j in range(size):
+                if (i, j) not in visited:
+                    return False
 
-            if not (match_right and match_left and match_bottom and match_top):
-                return False
-
-            # Explorar peças adjacentes
-            for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                new_row, new_col = row + dr, col + dc
-                if 0 <= new_row < size and 0 <= new_col < size:
-                    stack.append((new_row, new_col))
-
-        return True  # Se todas as posições foram visitadas e conectadas corretamente, retornar True
+        return True
 
 
     def h(self, node: Node):
@@ -368,6 +414,14 @@ if __name__ == "__main__":
     pipe = PipeMania(board)
     goal = breadth_first_tree_search(pipe)
     print(goal.state.board.print())
+    #"""
+
+    """
+    board = Board.parse_instance()
+    pipe = PipeMania(board)
+    state = PipeManiaState(board)
+    print("Goal test: ")
+    print(pipe.goal_test(state))
     #"""
 
     """
