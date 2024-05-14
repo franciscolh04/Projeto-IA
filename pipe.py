@@ -19,6 +19,27 @@ from search import (
     recursive_best_first_search,
 )
 
+piece_types = {
+    "F": ("FC", "FD", "FB", "FE"),
+    "B": ("BC", "BD", "BB", "BE"),
+    "V": ("VC", "VD", "VB", "VE"),
+    "L": ("LH", "LV")
+}
+
+piece_to_bin = {
+    "FC": (True, False, False, False), "FB": (False, False, True, False), "FE": (False, False, False, True), "FD": (False, True, False, False),
+    "BC": (True, True, False, True), "BB": (False, True, True, True), "BE": (True, False, True, True), "BD": (True, True, True, False),
+    "VC": (True, False, False, True), "VB": (False, True, True, False), "VE": (False, False, True, True), "VD": (True, True, False, False),
+    "LH": (False, True, False, True), "LV": (True, False, True, False)
+}
+
+bin_to_piece = {
+    (True, False, False, False): "FC", (False, False, True, False): "FB", (False, False, False, True): "FE", (False, True, False, False): "FD",
+    (True, True, False, True): "BC", (False, True, True, True): "BB", (True, False, True, True): "BE", (True, True, True, False): "BD",
+    (True, False, False, True): "VC", (False, True, True, False): "VB", (False, False, True, True): "VE", (True, True, False, False): "VD",
+    (False, True, False, True): "LH", (True, False, True, False): "LV"
+}
+
 class PipeManiaState:
     state_id = 0
 
@@ -35,9 +56,10 @@ class PipeManiaState:
 
 class Board:
     """Representação interna de um tabuleiro de PipeMania."""
-    def __init__(self, grid):
+    def __init__(self, grid, moved):
         self.grid = grid
         self.size = len(grid)
+        self.moved = moved
     
     def valid_coord(self, row: int, col: int) -> bool:
         """Devolve True sse (row, col) é uma coordenada válida do tabuleiro."""
@@ -46,7 +68,7 @@ class Board:
     def get_value(self, row: int, col: int) -> str:
         """Devolve o valor na respetiva posição do tabuleiro."""
         if self.valid_coord(row, col):
-            return self.grid[row][col][0]
+            return bin_to_piece[tuple(self.grid[row][col])]
         else:
             return None
     
@@ -62,13 +84,9 @@ class Board:
     
     def is_locked(self, row: int, col: int) -> bool:
         if self.valid_coord(row, col):
-            return self.grid[row][col][1]
+            return self.moved[row][col]
         else:
             return None
-    
-    def lock_piece(self, row: int, col: int):
-        if self.valid_coord(row, col):
-            self.grid[row][col][1] = True
 
     def adjacent_vertical_values(self, row: int, col: int) -> (str, str):
         """Devolve os valores imediatamente acima e abaixo,
@@ -79,30 +97,6 @@ class Board:
         """Devolve os valores imediatamente à esquerda e à direita,
         respectivamente."""
         return (self.get_value(row, col - 1), self.get_value(row, col + 1))
-    
-    def rotate_piece(self, row: int, col: int, clockwise: bool):
-        """Devolve uma nova instância da classe Board com a
-        rotação aplicada."""
-        all_orientations = ('C', 'D', 'B', 'E')
-        dic_volta = {'H': 'V', 'V': 'H'}
-
-        piece_type = self.get_type(row, col)
-        orientation = self.get_orientation(row, col)
-        current_orientation = all_orientations.index(orientation)
-        new_value = ''
-
-        if piece_type in ('F', 'B', 'V'):
-            if clockwise:
-                new_value += piece_type + all_orientations[(current_orientation + 1) % 4]
-            else:
-                new_value += piece_type + all_orientations[(current_orientation - 1) % 4]
-        else:
-            new_value += piece_type + dic_volta[orientation]
-        
-        new_grid = self.grid
-        new_grid[row][col][0] = new_value
-
-        return Board(new_grid)
     
     def set_orientation(self, row: int, col: int, new_orientation: str):
         """Devolve uma nova instância da classe Board com a peça na
@@ -116,85 +110,20 @@ class Board:
 
             return Board(new_grid)
     
-    def get_sides_to_connect(self, row: int, col: int) -> tuple:
-        """Devolve um tuplo com as orientações possíveis para as peças
-        adjacentes à peça espeficicada"""
-        dic = {'FC': ('B', 'V'), 'FB': ('C', 'V'), 'FE':('D', 'H'), 'FD':('E', 'H'),
-               'BC': ('D', 'E', 'H', 'B', 'V'), 'BB': ('D', 'E', 'H', 'C', 'V'),
-               'BE': ('D', 'H', 'C', 'B', 'V'), 'BD': ('E', 'H', 'C', 'B', 'V'),
-               'VC': ('D', 'H', 'B', 'V'), 'VB': ('E', 'H', 'C', 'V'),
-               'VE': ('D', 'H', 'C', 'V'), 'VD': ('E', 'H', 'B', 'V'),
-               'LH': ('D', 'E', 'H'), 'LV': ('B', 'C', 'V')}
-        
-        return dic[self.get_value(row, col)]
-    
     def get_next_piece(self):
-        # resolver o que der nos cantos
-        # resolver o que der nas bordas
         # obter coordenadas de peça que não esteja locked
         pass
 
     def get_possible_moves(self, row: int, col: int):
         # obter possíveis posições para a peça especificada tendo em conta as suas adjacentes
         pass
-    
-    def get_connection_right(self, row: int, col: int) -> bool:
-        orientation = self.get_orientation(row, col)
-        if orientation in ("D", "H"):
-            return True
-        piece = self.get_value(row, col)
-        if piece in ("BC", "BB", "VB"):
-            return True
-        else: 
-            return False
-    
-    def get_connection_left(self, row: int, col: int) -> bool:
-        orientation = self.get_orientation(row, col)
-        if orientation in ("E", "H"):
-            return True
-        piece = self.get_value(row, col)
-        if piece in ("BC", "BB", "VC"):
-            return True
-        else: 
-            return False
-    
-    def get_connection_top(self, row: int, col: int) -> bool:
-        orientation = self.get_orientation(row, col)
-        if orientation in ("C", "V"):
-            return True
-        piece = self.get_value(row, col)
-        if piece in ("BE", "BD", "VD") :
-            return True
-        else: 
-            return False
 
-    def get_connection_bottom(self, row: int, col: int) -> bool:
-        orientation = self.get_orientation(row, col)
-        if orientation in ("B", "V"):
-            return True
-        piece = self.get_value(row, col)
-        if piece in ("BE", "BD", "VE") :
-            return True
-        else: 
-            return False
-
-    def match_pieces(self, row: int, col: int, direction: str):
-        if direction == "r":
-            connect_1 = self.get_connection_right(row,col)
-            connect_2 = self.get_connection_left(row,col + 1)
-        elif direction == "l":
-            connect_1 = self.get_connection_right(row,col - 1)
-            connect_2 = self.get_connection_left(row,col)
-        elif direction == "b":
-            connect_1 = self.get_connection_bottom(row,col)
-            connect_2 = self.get_connection_top(row + 1,col)
-        elif direction == "t":
-            connect_1 = self.get_connection_bottom(row - 1,col)
-            connect_2 = self.get_connection_top(row,col)
-    
-        return connect_1 and connect_2
-            
-
+    def match_pieces(self, row: int, col: int, direction: int):
+        if direction % 2 == 1:
+            return self.grid[row][col][direction] and self.grid[row][col - (direction - 2)][(direction + 2) % 4]
+        else:
+            return self.grid[row][col][direction] and self.grid[row + (direction - 1)][col][(direction + 2) % 4]
+        
 
     @staticmethod
     def parse_instance():
@@ -207,24 +136,18 @@ class Board:
             > from sys import stdin
             > line = stdin.readline().split()
         """
-        grid = []
+        grid, moved = [], []
 
         line = stdin.readline().split()
         while len(line) != 0:
-            grid.append([[piece, False, []] for piece in line])
+            grid.append(np.array([piece_to_bin[piece] for piece in line]))
+            moved.append(np.array([False for piece in line]))
             line = stdin.readline().split()
         
-        for i in range(len(grid)):
-            for j in range(len(grid[0])):
-                piece = grid[i][j][0]
-                if piece[0] != "L":
-                    grid[i][j][2] = [(i, j, "C"), (i, j, "B"), (i, j, "E"), (i, j, "D")]
-                else:
-                    grid[i][j][2] = [(i, j, "H"), (i, j, "V")]
-        
-        board = Board(grid)
+        grid_np = np.array(grid)
+        moved_np = np.array(moved)
+        board = Board(grid_np, moved_np)
         board.filterActions()
-        print(grid)
 
         return board
     
@@ -233,77 +156,65 @@ class Board:
         bottom_left, bottom_right = self.get_type(self.size - 1, 0), self.get_type(self.size - 1, self.size - 1)
 
         if top_left == "V":
-            self.grid[0][0][2] = [(0, 0, "B")]
-        elif top_left == "F":
-            self.grid[0][0][2] = [(0, 0, "B"), (0, 0, "D")]
+            self.grid[0][0] = np.array((0, 1, 1, 0))
+            self.moved[0][0] = True
         
         if top_right == "V":
-            self.grid[0][self.size - 1][2] = [(0, self.size - 1, "E")]
-        elif top_right == "F":
-            self.grid[0][self.size - 1][2] = [(0, self.size - 1, "E"), (0, self.size - 1, "B")]
+            self.grid[0][self.size - 1] = np.array((0, 0, 1, 1))
+            self.moved[0][self.size - 1] = True
         
         if bottom_right == "V":
-            self.grid[self.size - 1][self.size - 1][2] = [(self.size - 1, self.size - 1, "C")]
-        elif bottom_right == "F":
-             self.grid[self.size - 1][self.size - 1][2] = [(self.size - 1, self.size - 1, "C"), (self.size - 1, self.size - 1, "E")]
+            self.grid[self.size - 1][self.size - 1] = np.array((1, 0, 0, 1))
+            self.moved[self.size - 1][self.size - 1] = True
         
         if bottom_left == "V":
-            self.grid[self.size - 1][0][2] = [(self.size - 1, 0, "D")]
-        elif bottom_left == "F":
-            self.grid[self.size - 1][0][2] = [(self.size - 1, 0, "D"), (self.size - 1, 0, "C")]
+            self.grid[self.size - 1][0] = np.array((1, 1, 0, 0))
+            self.moved[self.size - 1][0] = True
     
     def fix_borders(self):
         # Fix top
         for col in range(1, self.size - 1):
             piece_type = self.get_type(0, col)
 
-            if piece_type == "V":
-                self.grid[0][col][2] = [(0, col, "B"), (0, col, "E")]
-            elif piece_type == "F":
-                self.grid[0][col][2] = [(0, col, "B"), (0, col, "E"), (0, col, "D")]
-            elif piece_type == "B":
-                self.grid[0][col][2] = [(0, col, "B")]
+            if piece_type == "B":
+                self.grid[0][col] = np.array((0, 1, 1, 1))
+                self.moved[0][col] = True
             elif piece_type == "L":
-                self.grid[0][col][2] = [(0, col, "H")]
+                self.grid[0][col] = np.array((0, 1, 0, 1))
+                self.moved[0][col] = True
         
         # Fix bottom
         for col in range(1, self.size - 1):
             piece_type = self.get_type(self.size - 1, col)
 
-            if piece_type == "V":
-                self.grid[self.size - 1][col][2] = [(self.size - 1, col, "C"), (self.size - 1, col, "D")]
-            elif piece_type == "F":
-                self.grid[self.size - 1][col][2] = [(self.size - 1, col, "C"), (self.size - 1, col, "E"), (self.size - 1, col, "D")]
-            elif piece_type == "B":
-                self.grid[self.size - 1][col][2] = [(self.size - 1, col, "C")]
+            if piece_type == "B":
+                self.grid[self.size - 1][col] = np.array((1, 1, 0, 1))
+                self.moved[self.size - 1][col] = True
             elif piece_type == "L":
-                self.grid[self.size - 1][col][2] = [(self.size - 1, col, "H")]
+                self.grid[self.size - 1][col] = np.array((0, 1, 0, 1))
+                self.moved[self.size - 1][col] = True
         
         # Fix left
         for line in range(1, self.size - 1):
             piece_type = self.get_type(line, 0)
 
-            if piece_type == "V":
-                self.grid[line][0][2] = [(line, 0, "B"), (line, 0, "D")]
-            elif piece_type == "F":
-                self.grid[line][0][2] = [(line, 0, "B"), (line, 0, "C"), (line, 0, "D")]
-            elif piece_type == "B":
-                self.grid[line][0][2] = [(line, 0, "D")]
+            if piece_type == "B":
+                self.grid[line][0] = np.array((1, 1, 1, 0))
+                self.moved[line][0] = True
             elif piece_type == "L":
-                self.grid[line][0][2] = [(line, 0, "V")]
+                self.grid[line][0] = np.array((1, 0, 1, 0))
+                self.moved[line][0] = True
 
         # Fix right
         for line in range(1, self.size - 1):
             piece_type = self.get_type(line, self.size - 1)
 
-            if piece_type == "V":
-                self.grid[line][self.size - 1][2] = [(line, self.size - 1, "E"), (line, self.size - 1, "C")]
-            elif piece_type == "F":
-                self.grid[line][self.size - 1][2] = [(line, self.size - 1, "B"), (line, self.size - 1, "C"), (line, self.size - 1, "E")]
-            elif piece_type == "B":
-                self.grid[line][self.size - 1][2] = [(line, self.size - 1, "E")]
+            if piece_type == "B":
+                self.grid[line][self.size - 1] = np.array((1, 0, 1, 1))
+                self.moved[line][self.size - 1] = True
             elif piece_type == "L":
-                self.grid[line][self.size - 1][2] = [(line, self.size - 1, "V")]
+                self.grid[line][self.size - 1] = np.array((1, 0, 1, 0))
+                self.moved[line][self.size - 1] = True
 
 
     
@@ -316,34 +227,54 @@ class Board:
         string = ""
         for i in range(0, self.size):
             for j in range(0, self.size):
-                if j == self.size - 1:
+                if j == self.size - 1 and i != self.size - 1:
                     string += self.get_value(i, j) + "\n"
                 else:
-                    string += self.get_value(i, j) + " " #verificar se é espaço ou tabulação
+                    if i == self.size - 1 and j == self.size - 1:
+                        string += self.get_value(i, j)
+                    else:
+                        string += self.get_value(i, j) + "\t" #APAGAR ÚLTIMA TABULAÇÃO 
         return string
 
-    def deepcopy(self):
-        # Criando uma nova matriz vazia com as mesmas dimensões do tabuleiro original
-        new_grid = [[[None, False, []] for _ in range(board.size)] for _ in range(board.size)]
-        
-        # Copiando os elementos e atributos do tabuleiro original para o novo tabuleiro
-        for i in range(board.size):
-            for j in range(board.size):
-                piece, locked, connections = self.grid[i][j]
-                new_grid[i][j] = [piece, locked, self.deepcopy_list(connections)]  # Usando copy para criar uma cópia da lista de conexões
-        
-        # Criando um novo objeto Board com a nova matriz
-        new_board = Board(new_grid)
-        return new_board
-    
-    def deepcopy_list(self, lst):
-        if not isinstance(lst, list):
-            return lst  # Se o elemento não for uma lista, apenas o retorna
-        else:
-            return [self.deepcopy_list(item) for item in lst]  # Caso contrário, faz uma cópia profunda de cada elemento
-
-
     # TODO: outros metodos da classe
+
+    def get_adjancent_list(self, row: int, col: int):
+        lista_adj = np.array((None, None, None, None))
+        
+        for i in range(0, 4):
+            if i % 2 == 0:
+                a = row + (i - 1)
+                if self.valid_coord(a, col):
+                    if self.moved[a][col]:
+                        lista_adj[i] = self.grid[a][col][(i + 2) % 4]
+                else:
+                    lista_adj[i] = False
+            else:
+                b = col - (i - 2)
+                if self.valid_coord(row, b):
+                    if self.moved[row][b]:
+                        lista_adj[i] = self.grid[row][b][(i + 2) % 4]
+                else:
+                    lista_adj[i] = False
+                    
+        lista_adj_np = np.array(lista_adj)
+        return lista_adj
+    
+    def possible_actions(self, lista, piece_type: str):
+        possible = []
+        if piece_type == "L":
+            number = 2
+        else:
+            number = 4
+        for i in range(0, number):
+            for j in range(0,4):
+                if lista[j] != None:
+                    if piece_to_bin[piece_types[piece_type][i]][j] != lista[j]:
+                        break
+                if j == 3:
+                    possible.append(piece_to_bin[piece_types[piece_type][i]])
+        return possible
+                
 
 
 class PipeMania(Problem):
@@ -356,17 +287,27 @@ class PipeMania(Problem):
     def actions(self, state: PipeManiaState):
         """Retorna uma lista de ações que podem ser executadas a
         partir do estado passado como argumento."""
-        action_list = []
-        grid = state.board.grid
+        board = state.board
+        grid = board.grid
+        moved = board.moved
+        row = 0
+        col = 0
+        found = False
         for i in range(len(grid)):
             for j in range(len(grid[0])):
-                for action in grid[i][j][2]:
-                    action_list.append(action)
+                if not moved[i][j]:
+                    row = i
+                    col = j
+                    found = True
+                    break
+            if found:
+                break
+        
+        lista_adj = board.get_adjancent_list(row, col)
+        piece_type = board.get_type(row, col)
+        possible = board.possible_actions(lista_adj, piece_type)
+        action_list = [(row, col, action) for action in possible]
         return action_list
-        # TODO
-        # obter próxima peça
-        # obter lista de ações possíveis para peça
-        pass
 
     def result(self, state: PipeManiaState, action):
         """Retorna o estado resultante de executar a 'action' sobre
@@ -375,19 +316,13 @@ class PipeMania(Problem):
         self.actions(state)."""
         (row, col, orientation) = action
         board = state.board
-
-        action_list = board.deepcopy_list(board.grid[row][col][2])
-        #print("action list " + str((row, col)) + ": " + str(action_list))
-        action_list.remove(action)
-
-        new_board = board.deepcopy()
-        new_board.grid[row][col][2] = action_list
-        if len(action_list) == 0:
-            new_board.lock_piece(row, col)
-        new_board.set_orientation(row, col, orientation)
+        new_grid = np.copy(board.grid)
+        new_moved = np.copy(board.moved)
+        new_grid[row][col] = np.array(orientation)
+        new_moved[row][col] = True
+        new_board = Board(new_grid, new_moved)
 
         return PipeManiaState(new_board)
-        #"""
 
 
     def goal_test(self, state: PipeManiaState):
@@ -396,7 +331,7 @@ class PipeMania(Problem):
         estão preenchidas de acordo com as regras do problema."""
         board = state.board
         size = board.size
-        visited = set()  # Conjunto para armazenar as posições visitadas
+        visited = set()
 
         stack = [(0, 0)]  # Iniciar a pilha com a posição inicial (0, 0)
 
@@ -405,43 +340,33 @@ class PipeMania(Problem):
             if (row, col) in visited:
                 continue  # Evitar ciclos
             visited.add((row, col))
-            print("row, col: " + str((row, col)))
 
             # Verificar se a peça atual está corretamente conectada
-            left_piece, right_piece = board.adjacent_horizontal_values(row, col)
-            top_piece, bottom_piece = board.adjacent_vertical_values(row, col)
             match_right = match_left = match_bottom = match_top = True
-            if board.get_connection_right(row, col):
-                print("direita")
-                match_right = board.match_pieces(row, col, "r")
+            if board.grid[row][col][1]:
+                match_right = board.match_pieces(row, col, 1)
                 if match_right and (row, col + 1) not in visited:
                     stack.append((row, col + 1))
-            if board.get_connection_left(row, col):
-                print("esquerda")
-                match_left = board.match_pieces(row, col, "l")
+            if board.grid[row][col][3]:
+                match_left = board.match_pieces(row, col, 3)
                 if match_left and (row, col - 1) not in visited:
                     stack.append((row, col - 1))
-            if board.get_connection_bottom(row, col):
-                print("baixo")
-                match_bottom = board.match_pieces(row, col, "b")
+            if board.grid[row][col][2]:
+                match_bottom = board.match_pieces(row, col, 2)
                 if match_bottom and (row + 1, col) not in visited:
                     stack.append((row + 1, col))
-            if board.get_connection_top(row, col):
-                print("cima")
-                match_top = board.match_pieces(row, col, "t")
+            if board.grid[row][col][0]:
+                match_top = board.match_pieces(row, col, 0)
                 if match_top and (row - 1, col) not in visited:
                     stack.append((row - 1, col))
             
             if not (match_left and match_right and match_bottom and match_top):
-                return False 
-    
-        print(visited)        
+                return False  
                     
         for i in range(size):
             for j in range(size):
                 if (i, j) not in visited:
                     return False
-
         return True
 
 
@@ -461,81 +386,11 @@ if __name__ == "__main__":
     # Imprimir para o standard output no formato indicado.
     #"""
     board = Board.parse_instance()
+    #lista_adj = board.get_adjancent_list(2, 0)
+    #print(lista_adj)
+    #possible = board.possible_actions(lista_adj, "F")
+    #print(possible)
     pipe = PipeMania(board)
     goal = breadth_first_tree_search(pipe)
     print(goal.state.board.print())
-    #"""
-
-    """
-    board = Board.parse_instance()
-    pipe = PipeMania(board)
-    state = PipeManiaState(board)
-    print("Goal test: ")
-    print(pipe.goal_test(state))
-    #"""
-
-    """
-    board = Board.parse_instance()
-    print(board.get_sides_to_connect(1, 0))
-    print(board.get_sides_to_connect(1, 2))
-    board.set_orientation(1, 0, "B")
-    board.set_orientation(1, 2, "H")
-    print(board.get_sides_to_connect(1, 0))
-    print(board.get_sides_to_connect(1, 2))
-    """
-
-
-    """
-    #Exemplo 1
-    board = Board.parse_instance()
-    print(board.adjacent_vertical_values(0, 0))
-    print(board.adjacent_horizontal_values(0, 0))
-    print(board.adjacent_vertical_values(1, 1))
-    print(board.adjacent_horizontal_values(1, 1))
-    #print(board.get_type(0, 1))
-    #print(board.get_orientation(0, 1))
-    """
-
-    """
-    #Exemplo 2
-    # Ler grelha do figura 1a:
-    board = Board.parse_instance()
-    # Criar uma instância de PipeMania:
-    problem = PipeMania(board)
-    # Criar um estado com a configuração inicial:
-    initial_state = PipeManiaState(board)
-    # Mostrar valor na posição (2, 2):
-    print(initial_state.board.get_value(2, 2))
-    # Realizar ação de rodar 90° clockwise a peça (2, 2)
-    result_state = problem.result(initial_state, (2, 2, True))
-    # Mostrar valor na posição (2, 2):
-    print(result_state.board.get_value(2, 2))
-    """
-
-    """
-    #Exemplo 3
-    # Ler grelha do figura 1a:
-    board = Board.parse_instance()
-    # Criar uma instância de PipeMania:
-    problem = PipeMania(board)
-    # Criar um estado com a configuração inicial:
-    s0 = PipeManiaState(board)
-    # Aplicar as ações que resolvem a instância
-    s1 = problem.result(s0, (0, 1, True))
-    s2 = problem.result(s1, (0, 1, True))
-    s3 = problem.result(s2, (0, 2, True))
-    s4 = problem.result(s3, (0, 2, True))
-    s5 = problem.result(s4, (1, 0, True))
-    s6 = problem.result(s5, (1, 1, True))
-    s7 = problem.result(s6, (2, 0, False)) # anti-clockwise (exemplo de uso)
-    s8 = problem.result(s7, (2, 0, False)) # anti-clockwise (exemplo de uso)
-    s9 = problem.result(s8, (2, 1, True))
-    s10 = problem.result(s9, (2, 1, True))
-    s11 = problem.result(s10, (2, 2, True))
-
-    # Verificar se foi atingida a solução
-    print("Is goal?", problem.goal_test(s5))
-    print("Is goal?", problem.goal_test(s11))
-    print("Solution s5:\n", s5.board.print(), sep="")
-    print("Solution s11:\n", s11.board.print(), sep="")
     #"""
