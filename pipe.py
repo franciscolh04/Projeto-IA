@@ -290,8 +290,7 @@ class PipeMania(Problem):
         board = state.board
         grid = board.grid
         moved = board.moved
-        row = 0
-        col = 0
+        row, col = 0, 0
         found = False
         for i in range(len(grid)):
             for j in range(len(grid[0])):
@@ -343,19 +342,19 @@ class PipeMania(Problem):
 
             # Verificar se a peça atual está corretamente conectada
             match_right = match_left = match_bottom = match_top = True
-            if board.grid[row][col][1]:
+            if board.grid[row][col][1] and board.valid_coord(row, col + 1):
                 match_right = board.match_pieces(row, col, 1)
                 if match_right and (row, col + 1) not in visited:
                     stack.append((row, col + 1))
-            if board.grid[row][col][3]:
+            if board.grid[row][col][3] and board.valid_coord(row, col - 1):
                 match_left = board.match_pieces(row, col, 3)
                 if match_left and (row, col - 1) not in visited:
                     stack.append((row, col - 1))
-            if board.grid[row][col][2]:
+            if board.grid[row][col][2] and board.valid_coord(row + 1, col):
                 match_bottom = board.match_pieces(row, col, 2)
                 if match_bottom and (row + 1, col) not in visited:
                     stack.append((row + 1, col))
-            if board.grid[row][col][0]:
+            if board.grid[row][col][0] and board.valid_coord(row - 1, col):
                 match_top = board.match_pieces(row, col, 0)
                 if match_top and (row - 1, col) not in visited:
                     stack.append((row - 1, col))
@@ -386,10 +385,6 @@ if __name__ == "__main__":
     # Imprimir para o standard output no formato indicado.
     #"""
     board = Board.parse_instance()
-    #lista_adj = board.get_adjancent_list(2, 0)
-    #print(lista_adj)
-    #possible = board.possible_actions(lista_adj, "F")
-    #print(possible)
     pipe = PipeMania(board)
     goal = breadth_first_tree_search(pipe)
     print(goal.state.board.print())
