@@ -81,12 +81,6 @@ class Board:
         """Devolve a orientação da peça na respetiva posição do tabuleiro."""
         orientation = self.get_value(row, col)
         return orientation[1] if orientation is not None else None
-    
-    def is_locked(self, row: int, col: int) -> bool:
-        if self.valid_coord(row, col):
-            return self.moved[row][col]
-        else:
-            return None
 
     def adjacent_vertical_values(self, row: int, col: int) -> (str, str):
         """Devolve os valores imediatamente acima e abaixo,
@@ -112,10 +106,6 @@ class Board:
     
     def get_next_piece(self):
         # obter coordenadas de peça que não esteja locked
-        pass
-
-    def get_possible_moves(self, row: int, col: int):
-        # obter possíveis posições para a peça especificada tendo em conta as suas adjacentes
         pass
 
     def match_pieces(self, row: int, col: int, direction: int):
@@ -274,8 +264,6 @@ class Board:
                 if j == 3:
                     possible.append(piece_to_bin[piece_types[piece_type][i]])
         return possible
-                
-
 
 class PipeMania(Problem):
     def __init__(self, board: Board):
@@ -284,14 +272,16 @@ class PipeMania(Problem):
         super().__init__(initial_state)
         pass
 
+    
     def actions(self, state: PipeManiaState):
-        """Retorna uma lista de ações que podem ser executadas a
-        partir do estado passado como argumento."""
+        """Retorna uma lista de ações que podem ser executadas a partir do estado passado como argumento."""
         board = state.board
         grid = board.grid
         moved = board.moved
-        row, col = 0, 0
+        row = col = 0
         found = False
+
+        # Encontrar a primeira coordenada não movida
         for i in range(len(grid)):
             for j in range(len(grid[0])):
                 if not moved[i][j]:
@@ -301,12 +291,39 @@ class PipeMania(Problem):
                     break
             if found:
                 break
-        
+            
+        # Obter a lista de adjacência e ações possíveis para a peça na coordenada encontrada
         lista_adj = board.get_adjancent_list(row, col)
         piece_type = board.get_type(row, col)
         possible = board.possible_actions(lista_adj, piece_type)
         action_list = [(row, col, action) for action in possible]
+
+        # Se a lista de ações tiver mais de uma ação, tentar encontrar uma coordenada com uma ação única
+        if len(action_list) > 1:
+            best_coordinate = None
+            min_actions = float('inf')
+            
+            # Percorrer todas as coordenadas novamente para encontrar a melhor
+            for i in range(len(grid)):
+                for j in range(len(grid[0])):
+                    if not moved[i][j]:
+                        new_lista_adj = board.get_adjancent_list(i, j)
+                        new_piece_type = board.get_type(i, j)
+                        new_possible = board.possible_actions(new_lista_adj, new_piece_type)
+                        new_action_list = [(i, j, action) for action in new_possible]
+
+                        if len(new_action_list) == 1:
+                            return new_action_list
+                        
+                        if len(new_action_list) < min_actions:
+                            min_actions = len(new_action_list)
+                            best_coordinate = new_action_list
+
+            if best_coordinate is not None:
+                return best_coordinate
+
         return action_list
+
 
     def result(self, state: PipeManiaState, action):
         """Retorna o estado resultante de executar a 'action' sobre
@@ -375,6 +392,8 @@ class PipeMania(Problem):
         pass
 
     # TODO: outros metodos da classe
+
+    
 
 
 if __name__ == "__main__":
