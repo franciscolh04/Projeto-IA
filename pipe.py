@@ -141,6 +141,7 @@ class Board:
 
         return board
     
+    
     def fix_corners(self):
         top_left, top_right = self.get_type(0, 0), self.get_type(0, self.size - 1)
         bottom_left, bottom_right = self.get_type(self.size - 1, 0), self.get_type(self.size - 1, self.size - 1)
@@ -223,11 +224,12 @@ class Board:
                     if i == self.size - 1 and j == self.size - 1:
                         string += self.get_value(i, j)
                     else:
-                        string += self.get_value(i, j) + "\t" #APAGAR ÚLTIMA TABULAÇÃO 
+                        string += self.get_value(i, j) + "\t" 
         return string
 
     # TODO: outros metodos da classe
 
+    #"""
     def get_adjancent_list(self, row: int, col: int):
         lista_adj = np.array((None, None, None, None))
         
@@ -249,6 +251,23 @@ class Board:
                     
         lista_adj_np = np.array(lista_adj)
         return lista_adj
+    #"""
+    
+    """
+    def get_adjancent_list(self, row: int, col: int):
+        lista_adj = [None, None, None, None]
+        directions = [(row - 1, col), (row, col + 1), (row + 1, col), (row, col - 1)]
+
+        for i, (r, c) in enumerate(directions):
+            if self.valid_coord(r, c):
+                if self.moved[r][c]:
+                    lista_adj[i] = self.grid[r][c][(i + 2) % 4]
+            else:
+                lista_adj[i] = False
+
+        return np.array(lista_adj)
+    """
+
     
     def possible_actions(self, lista, piece_type: str):
         possible = []
@@ -264,6 +283,8 @@ class Board:
                 if j == 3:
                     possible.append(piece_to_bin[piece_types[piece_type][i]])
         return possible
+    
+
 
 class PipeMania(Problem):
     def __init__(self, board: Board):
@@ -278,51 +299,27 @@ class PipeMania(Problem):
         board = state.board
         grid = board.grid
         moved = board.moved
-        row = col = 0
-        found = False
-
-        # Encontrar a primeira coordenada não movida
-        for i in range(len(grid)):
-            for j in range(len(grid[0])):
+        size = len(grid)
+        
+        best_action_list = None
+        min_actions = float('inf')
+        
+        for i in range(size):
+            for j in range(size):
                 if not moved[i][j]:
-                    row = i
-                    col = j
-                    found = True
-                    break
-            if found:
-                break
-            
-        # Obter a lista de adjacência e ações possíveis para a peça na coordenada encontrada
-        lista_adj = board.get_adjancent_list(row, col)
-        piece_type = board.get_type(row, col)
-        possible = board.possible_actions(lista_adj, piece_type)
-        action_list = [(row, col, action) for action in possible]
+                    lista_adj = board.get_adjancent_list(i, j)
+                    piece_type = board.get_type(i, j)
+                    possible = board.possible_actions(lista_adj, piece_type)
+                    action_list = [(i, j, action) for action in possible]
 
-        # Se a lista de ações tiver mais de uma ação, tentar encontrar uma coordenada com uma ação única
-        if len(action_list) > 1:
-            best_coordinate = None
-            min_actions = float('inf')
-            
-            # Percorrer todas as coordenadas novamente para encontrar a melhor
-            for i in range(len(grid)):
-                for j in range(len(grid[0])):
-                    if not moved[i][j]:
-                        new_lista_adj = board.get_adjancent_list(i, j)
-                        new_piece_type = board.get_type(i, j)
-                        new_possible = board.possible_actions(new_lista_adj, new_piece_type)
-                        new_action_list = [(i, j, action) for action in new_possible]
+                    if len(action_list) == 1:
+                        return action_list
+                    
+                    if len(action_list) < min_actions:
+                        min_actions = len(action_list)
+                        best_action_list = action_list
 
-                        if len(new_action_list) == 1:
-                            return new_action_list
-                        
-                        if len(new_action_list) < min_actions:
-                            min_actions = len(new_action_list)
-                            best_coordinate = new_action_list
-
-            if best_coordinate is not None:
-                return best_coordinate
-
-        return action_list
+        return best_action_list if best_action_list is not None else []
 
 
     def result(self, state: PipeManiaState, action):
@@ -338,7 +335,30 @@ class PipeMania(Problem):
         new_moved[row][col] = True
         new_board = Board(new_grid, new_moved)
 
+        def update_adjacent_piece(new_board, row, col):
+            if new_board.valid_coord(row, col) and not new_board.moved[row][col]:
+                lista_adj = new_board.get_adjancent_list(row, col)
+                piece_type = new_board.get_type(row, col)
+                possible = new_board.possible_actions(lista_adj, piece_type)
+
+                # Se há apenas uma ação possível, atualize a peça
+                if len(possible) == 1:
+                    new_board.grid[row][col] = np.array(possible[0])
+                    new_board.moved[row][col] = True
+
+        # Verifique as peças adjacentes
+        adjacent_positions = [
+            (row - 1, col),  # acima
+            (row + 1, col),  # abaixo
+            (row, col - 1),  # à esquerda
+            (row, col + 1)   # à direita
+        ]
+
+        for adj_row, adj_col in adjacent_positions:
+            update_adjacent_piece(new_board, adj_row, adj_col)
+
         return PipeManiaState(new_board)
+
 
 
     def goal_test(self, state: PipeManiaState):
@@ -348,8 +368,24 @@ class PipeMania(Problem):
         board = state.board
         size = board.size
         visited = set()
+        stack = [(0, 0)]
 
-        stack = [(0, 0)]  # Iniciar a pilha com a posição inicial (0, 0)
+        def is_valid_and_match(row, col, direction):
+            if direction == 1:
+                adj_row, adj_col = row, col + 1
+            elif direction == 3:
+                adj_row, adj_col = row, col - 1
+            elif direction == 2:
+                adj_row, adj_col = row + 1, col
+            elif direction == 0:
+                adj_row, adj_col = row - 1, col
+            else:
+                return False
+            
+            return (
+                board.valid_coord(adj_row, adj_col) and 
+                board.match_pieces(row, col, direction)
+            )
 
         while stack:
             row, col = stack.pop()  # Obter a próxima posição a ser explorada
@@ -357,33 +393,21 @@ class PipeMania(Problem):
                 continue  # Evitar ciclos
             visited.add((row, col))
 
-            # Verificar se a peça atual está corretamente conectada
-            match_right = match_left = match_bottom = match_top = True
-            if board.grid[row][col][1] and board.valid_coord(row, col + 1):
-                match_right = board.match_pieces(row, col, 1)
-                if match_right and (row, col + 1) not in visited:
-                    stack.append((row, col + 1))
-            if board.grid[row][col][3] and board.valid_coord(row, col - 1):
-                match_left = board.match_pieces(row, col, 3)
-                if match_left and (row, col - 1) not in visited:
-                    stack.append((row, col - 1))
-            if board.grid[row][col][2] and board.valid_coord(row + 1, col):
-                match_bottom = board.match_pieces(row, col, 2)
-                if match_bottom and (row + 1, col) not in visited:
-                    stack.append((row + 1, col))
-            if board.grid[row][col][0] and board.valid_coord(row - 1, col):
-                match_top = board.match_pieces(row, col, 0)
-                if match_top and (row - 1, col) not in visited:
-                    stack.append((row - 1, col))
-            
-            if not (match_left and match_right and match_bottom and match_top):
-                return False  
-                    
-        for i in range(size):
-            for j in range(size):
-                if (i, j) not in visited:
-                    return False
-        return True
+            for direction in [0, 1, 2, 3]:
+                if board.grid[row][col][direction]:
+                    if not is_valid_and_match(row, col, direction):
+                        return False
+                    adj_row, adj_col = (
+                        (row, col + 1) if direction == 1 else
+                        (row, col - 1) if direction == 3 else
+                        (row + 1, col) if direction == 2 else
+                        (row - 1, col)
+                    )
+                    if (adj_row, adj_col) not in visited and board.valid_coord(adj_row, adj_col):
+                        stack.append((adj_row, adj_col))
+
+        # Verificar se todas as posições foram visitadas
+        return len(visited) == size * size
 
 
     def h(self, node: Node):
@@ -405,6 +429,7 @@ if __name__ == "__main__":
     #"""
     board = Board.parse_instance()
     pipe = PipeMania(board)
-    goal = breadth_first_tree_search(pipe)
+    goal = depth_first_tree_search(pipe)
+
     print(goal.state.board.print())
     #"""
