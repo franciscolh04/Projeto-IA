@@ -50,9 +50,7 @@ class PipeManiaState:
 
     def __lt__(self, other):
         return self.id < other.id
-
-    # TODO: outros metodos da classe
-
+    
 
 class Board:
     """Representação interna de um tabuleiro de PipeMania."""
@@ -76,11 +74,6 @@ class Board:
         """Devolve o tipo da peça na respetiva posição do tabuleiro."""
         piece_type = self.get_value(row, col)
         return piece_type[0] if piece_type is not None else None
-    
-    def get_orientation(self, row: int, col: int) -> str:
-        """Devolve a orientação da peça na respetiva posição do tabuleiro."""
-        orientation = self.get_value(row, col)
-        return orientation[1] if orientation is not None else None
 
     def adjacent_vertical_values(self, row: int, col: int) -> (str, str):
         """Devolve os valores imediatamente acima e abaixo,
@@ -91,29 +84,12 @@ class Board:
         """Devolve os valores imediatamente à esquerda e à direita,
         respectivamente."""
         return (self.get_value(row, col - 1), self.get_value(row, col + 1))
-    
-    def set_orientation(self, row: int, col: int, new_orientation: str):
-        """Devolve uma nova instância da classe Board com a peça na
-        orientação especificada."""
-        if self.get_orientation(row, col) == new_orientation:
-            return self
-        else:
-            new_value = self.get_type(row, col) + new_orientation
-            new_grid = self.grid
-            new_grid[row][col][0] = new_value
-
-            return Board(new_grid)
-    
-    def get_next_piece(self):
-        # obter coordenadas de peça que não esteja locked
-        pass
 
     def match_pieces(self, row: int, col: int, direction: int):
         if direction % 2 == 1:
             return self.grid[row][col][direction] and self.grid[row][col - (direction - 2)][(direction + 2) % 4]
         else:
             return self.grid[row][col][direction] and self.grid[row + (direction - 1)][col][(direction + 2) % 4]
-        
 
     @staticmethod
     def parse_instance():
@@ -140,7 +116,6 @@ class Board:
         board.filterActions()
 
         return board
-    
     
     def fix_corners(self):
         top_left, top_right = self.get_type(0, 0), self.get_type(0, self.size - 1)
@@ -207,12 +182,9 @@ class Board:
                 self.grid[line][self.size - 1] = np.array((1, 0, 1, 0))
                 self.moved[line][self.size - 1] = True
 
-
-    
     def filterActions(self):
         self.fix_corners()
         self.fix_borders()
-        
     
     def print(self):
         string = ""
@@ -227,9 +199,6 @@ class Board:
                         string += self.get_value(i, j) + "\t" 
         return string
 
-    # TODO: outros metodos da classe
-
-    #"""
     def get_adjancent_list(self, row: int, col: int):
         lista_adj = np.array((None, None, None, None))
         
@@ -251,24 +220,7 @@ class Board:
                     
         lista_adj_np = np.array(lista_adj)
         return lista_adj
-    #"""
-    
-    """
-    def get_adjancent_list(self, row: int, col: int):
-        lista_adj = [None, None, None, None]
-        directions = [(row - 1, col), (row, col + 1), (row + 1, col), (row, col - 1)]
 
-        for i, (r, c) in enumerate(directions):
-            if self.valid_coord(r, c):
-                if self.moved[r][c]:
-                    lista_adj[i] = self.grid[r][c][(i + 2) % 4]
-            else:
-                lista_adj[i] = False
-
-        return np.array(lista_adj)
-    """
-
-    
     def possible_actions(self, lista, piece_type: str):
         possible = []
         if piece_type == "L":
@@ -283,7 +235,17 @@ class Board:
                 if j == 3:
                     possible.append(piece_to_bin[piece_types[piece_type][i]])
         return possible
-    
+
+    def update_piece(self, row, col):
+        if self.valid_coord(row, col) and not self.moved[row][col]:
+            lista_adj = self.get_adjancent_list(row, col)
+            piece_type = self.get_type(row, col)
+            possible = self.possible_actions(lista_adj, piece_type)
+
+            # Se há apenas uma ação possível, atualiza a peça
+            if len(possible) == 1:
+                self.grid[row][col] = np.array(possible[0])
+                self.moved[row][col] = True
 
 
 class PipeMania(Problem):
@@ -292,7 +254,6 @@ class PipeMania(Problem):
         initial_state = PipeManiaState(board)
         super().__init__(initial_state)
         pass
-
     
     def actions(self, state: PipeManiaState):
         """Retorna uma lista de ações que podem ser executadas a partir do estado passado como argumento."""
@@ -321,7 +282,6 @@ class PipeMania(Problem):
 
         return best_action_list if best_action_list is not None else []
 
-
     def result(self, state: PipeManiaState, action):
         """Retorna o estado resultante de executar a 'action' sobre
         'state' passado como argumento. A ação a executar deve ser uma
@@ -334,32 +294,13 @@ class PipeMania(Problem):
         new_grid[row][col] = np.array(orientation)
         new_moved[row][col] = True
         new_board = Board(new_grid, new_moved)
-
-        def update_adjacent_piece(new_board, row, col):
-            if new_board.valid_coord(row, col) and not new_board.moved[row][col]:
-                lista_adj = new_board.get_adjancent_list(row, col)
-                piece_type = new_board.get_type(row, col)
-                possible = new_board.possible_actions(lista_adj, piece_type)
-
-                # Se há apenas uma ação possível, atualize a peça
-                if len(possible) == 1:
-                    new_board.grid[row][col] = np.array(possible[0])
-                    new_board.moved[row][col] = True
-
-        # Verifique as peças adjacentes
-        adjacent_positions = [
-            (row - 1, col),  # acima
-            (row + 1, col),  # abaixo
-            (row, col - 1),  # à esquerda
-            (row, col + 1)   # à direita
-        ]
-
-        for adj_row, adj_col in adjacent_positions:
-            update_adjacent_piece(new_board, adj_row, adj_col)
+        
+        for i in range(new_board.size):
+            for j in range(new_board.size):
+                if not new_moved[i][j]:
+                    new_board.update_piece(i, j)
 
         return PipeManiaState(new_board)
-
-
 
     def goal_test(self, state: PipeManiaState):
         """Retorna True se e só se o estado passado como argumento é
@@ -409,15 +350,10 @@ class PipeMania(Problem):
         # Verificar se todas as posições foram visitadas
         return len(visited) == size * size
 
-
     def h(self, node: Node):
         """Função heuristica utilizada para a procura A*."""
         # TODO
         pass
-
-    # TODO: outros metodos da classe
-
-    
 
 
 if __name__ == "__main__":
@@ -426,10 +362,7 @@ if __name__ == "__main__":
     # Usar uma técnica de procura para resolver a instância,
     # Retirar a solução a partir do nó resultante,
     # Imprimir para o standard output no formato indicado.
-    #"""
     board = Board.parse_instance()
     pipe = PipeMania(board)
     goal = depth_first_tree_search(pipe)
-
     print(goal.state.board.print())
-    #"""
