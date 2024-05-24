@@ -364,5 +364,5 @@ if __name__ == "__main__":
     # Imprimir para o standard output no formato indicado.
     board = Board.parse_instance()
     pipe = PipeMania(board)
-    goal = depth_first_tree_search(pipe)
+    goal = depth_limited_search(pipe, board.size * board.size)
     print(goal.state.board.print())
